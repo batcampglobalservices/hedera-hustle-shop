@@ -1,7 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Search, User, Menu, Wallet } from "lucide-react";
+import { ShoppingCart, Search, User, Menu, LogOut } from "lucide-react";
+import { WalletConnectButton } from "@/components/wallet/WalletConnectButton";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { useAuth } from "@/hooks/useAuth";
 const Header = () => {
+  const { user, signOut, loading } = useAuth();
+
   return <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
@@ -26,11 +31,6 @@ const Header = () => {
             <Search className="w-4 h-4" />
           </Button>
           
-          <Button variant="outline" className="hidden lg:flex items-center space-x-2">
-            <Wallet className="w-4 h-4" />
-            <span>Connect Wallet</span>
-          </Button>
-
           <Button variant="ghost" size="icon" className="relative">
             <ShoppingCart className="w-4 h-4" />
             <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
@@ -38,9 +38,30 @@ const Header = () => {
             </Badge>
           </Button>
 
-          <Button variant="ghost" size="icon">
-            <User className="w-4 h-4" />
-          </Button>
+          {!loading && (
+            <>
+              {user ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground hidden sm:block">
+                    {user.email}
+                  </span>
+                  <Button variant="ghost" size="icon" onClick={signOut}>
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <AuthModal>
+                  <Button variant="ghost" size="icon">
+                    <User className="w-4 h-4" />
+                  </Button>
+                </AuthModal>
+              )}
+              
+              <div className="hidden lg:block">
+                <WalletConnectButton />
+              </div>
+            </>
+          )}
 
           <Button variant="ghost" size="icon" className="md:hidden">
             <Menu className="w-4 h-4" />

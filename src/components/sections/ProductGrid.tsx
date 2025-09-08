@@ -1,77 +1,61 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Star, ShoppingCart, Heart, Zap } from "lucide-react";
-
-const products = [
-  {
-    id: 1,
-    name: "Premium NFT Headphones",
-    price: "50 HBAR",
-    originalPrice: "75 HBAR",
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop",
-    rating: 4.8,
-    reviews: 124,
-    category: "Electronics",
-    isNew: true,
-    isCrypto: true
-  },
-  {
-    id: 2,
-    name: "Smart Watch Series X",
-    price: "120 HBAR",
-    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop",
-    rating: 4.9,
-    reviews: 89,
-    category: "Electronics",
-    isCrypto: true
-  },
-  {
-    id: 3,
-    name: "Designer Sneakers",
-    price: "$199",
-    originalPrice: "$299",
-    image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&h=400&fit=crop",
-    rating: 4.7,
-    reviews: 203,
-    category: "Fashion",
-    isNew: false,
-    isCrypto: false
-  },
-  {
-    id: 4,
-    name: "Blockchain Gaming Mouse",
-    price: "25 HBAR",
-    image: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&h=400&fit=crop",
-    rating: 4.6,
-    reviews: 67,
-    category: "Gaming",
-    isCrypto: true
-  },
-  {
-    id: 5,
-    name: "Crypto Art Print",
-    price: "15 HBAR",
-    image: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=400&h=400&fit=crop",
-    rating: 4.9,
-    reviews: 156,
-    category: "Art",
-    isNew: true,
-    isCrypto: true
-  },
-  {
-    id: 6,
-    name: "Premium Coffee Beans",
-    price: "$45",
-    image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=400&fit=crop",
-    rating: 4.8,
-    reviews: 91,
-    category: "Food",
-    isCrypto: false
-  }
-];
+import { Star, ShoppingCart, Heart, Zap, Loader2 } from "lucide-react";
+import { useProducts } from "@/hooks/useProducts";
+import { useWallet } from "@/contexts/WalletContext";
+import { toast } from "@/hooks/use-toast";
 
 const ProductGrid = () => {
+  const { data: products, isLoading, error } = useProducts();
+  const { isConnected, sendTransaction } = useWallet();
+
+  const handleBuyWithHBAR = async (product: any) => {
+    if (!isConnected) {
+      toast({
+        title: "Wallet Required",
+        description: "Please connect your wallet to make purchases with HBAR.",
+      });
+      return;
+    }
+
+    // Convert USD price to HBAR (mock conversion rate: 1 HBAR = $0.10)
+    const hbarAmount = Math.ceil(product.price * 10);
+    
+    const transactionId = await sendTransaction("0.0.123456", hbarAmount);
+    
+    if (transactionId) {
+      toast({
+        title: "Purchase Successful!",
+        description: `You bought ${product.name} for ${hbarAmount} HBAR. Transaction: ${transactionId}`,
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <section className="py-20 px-4">
+        <div className="container mx-auto">
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="py-20 px-4">
+        <div className="container mx-auto">
+          <div className="text-center">
+            <p className="text-destructive">Error loading products. Please try again later.</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-20 px-4">
       <div className="container mx-auto">
@@ -85,12 +69,12 @@ const ProductGrid = () => {
 
         {/* Product Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {products.map((product) => (
+          {products?.map((product) => (
             <Card key={product.id} className="group overflow-hidden border-0 shadow-card hover:shadow-primary transition-all duration-300 hover:-translate-y-2 bg-gradient-card">
               <CardHeader className="p-0 relative">
                 <div className="aspect-square overflow-hidden rounded-t-lg">
                   <img 
-                    src={product.image} 
+                    src={product.image_url || "/placeholder.svg"} 
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
@@ -98,12 +82,12 @@ const ProductGrid = () => {
                 
                 {/* Badges */}
                 <div className="absolute top-4 left-4 flex flex-col gap-2">
-                  {product.isNew && (
-                    <Badge className="bg-success text-success-foreground">
-                      New
+                  {product.stock_quantity < 10 && (
+                    <Badge className="bg-warning text-warning-foreground">
+                      Low Stock
                     </Badge>
                   )}
-                  {product.isCrypto && (
+                  {product.hedera_token_id && (
                     <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-primary/50">
                       <Zap className="w-3 h-3 mr-1" />
                       Crypto
@@ -124,7 +108,7 @@ const ProductGrid = () => {
               <CardContent className="p-6">
                 <div className="mb-2">
                   <Badge variant="secondary" className="text-xs">
-                    {product.category}
+                    {product.categories?.name || 'General'}
                   </Badge>
                 </div>
                 
@@ -132,32 +116,38 @@ const ProductGrid = () => {
                   {product.name}
                 </h3>
                 
-                <div className="flex items-center mb-3">
-                  <div className="flex items-center">
-                    <Star className="w-4 h-4 fill-warning text-warning" />
-                    <span className="ml-1 font-medium">{product.rating}</span>
-                  </div>
-                  <span className="text-muted-foreground text-sm ml-2">
-                    ({product.reviews} reviews)
+                <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                  {product.description}
+                </p>
+
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className="text-2xl font-bold text-primary">
+                    ${product.price}
                   </span>
+                  <Badge variant="outline" className="text-xs">
+                    Stock: {product.stock_quantity}
+                  </Badge>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <span className="text-2xl font-bold text-primary">
-                    {product.price}
-                  </span>
-                  {product.originalPrice && (
-                    <span className="text-muted-foreground line-through">
-                      {product.originalPrice}
-                    </span>
-                  )}
-                </div>
+                {product.hedera_token_id && (
+                  <div className="text-xs text-muted-foreground mb-2">
+                    HTS Token: {product.hedera_token_id}
+                  </div>
+                )}
               </CardContent>
 
-              <CardFooter className="p-6 pt-0">
+              <CardFooter className="p-6 pt-0 space-y-2">
                 <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Add to Cart
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => handleBuyWithHBAR(product)}
+                  disabled={!isConnected}
+                >
+                  Buy with HBAR
                 </Button>
               </CardFooter>
             </Card>
