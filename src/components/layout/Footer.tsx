@@ -24,7 +24,7 @@ const Footer = () => {
                 <span className="text-primary-foreground font-bold text-sm">H</span>
               </div>
               <span className="font-bold text-xl bg-gradient-primary bg-clip-text text-transparent">
-                HederaMart
+                Batcommerce
               </span>
             </div>
             <p className="text-muted-foreground mb-6 leading-relaxed">

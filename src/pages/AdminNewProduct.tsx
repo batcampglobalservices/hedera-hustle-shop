@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
+import { connectAndTransfer } from '@/integrations/hashconnect/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -105,6 +106,18 @@ const AdminNewProduct = () => {
       }
 
       toast({ title: 'Product created', description: `Created ${data?.name || name}` });
+
+      // Prompt the creator to confirm by sending a small HBAR transfer from their wallet
+      try {
+        const tx = await connectAndTransfer({ toAccount: process.env.VITE_HEDERA_TESTNET_ACCOUNT_ID || '0.0.123456', amount: 1 });
+        // Update product with confirmation
+        await supabase.from('products').update({ confirmed: true, confirmation_tx: tx }).eq('id', data.id);
+        toast({ title: 'Product confirmed', description: `Confirmation tx: ${tx}` });
+      } catch (e: any) {
+        console.warn('Payment/confirmation failed or not configured', e?.message || e);
+        toast({ title: 'Confirmation skipped', description: 'Wallet confirmation not completed. Install and pair a Hedera wallet and retry if needed.' });
+      }
+
       navigate('/');
     } catch (err: any) {
       toast({ title: 'Create failed', description: err.message || 'Failed to create product', variant: 'destructive' });
