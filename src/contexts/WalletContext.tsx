@@ -23,52 +23,117 @@ export const useWallet = () => {
 declare global {
   interface Window {
     hashpack?: {
-      connectToLocalWallet: () => Promise<{
-        success: boolean;
-        message: string;
-        data?: {
-          accountIds: string[];
-          network: string;
-        };
-      }>;
-      requestAccountInfo: () => Promise<{
-        success: boolean;
-        data?: {
-          accountId: string;
-          balance: {
-            hbars: number;
-          };
-        };
-      }>;
-      makeBytes: (transaction: any, accountId: string) => Promise<{
-        success: boolean;
-        signedTransaction?: Uint8Array;
-      }>;
+      connectToLocalWallet?: () => Promise<any>;
+      connect?: () => Promise<any>;
+      requestAccountInfo?: () => Promise<any>;
+      requestAccounts?: () => Promise<{ accounts?: string[] }>;
+      makeBytes?: (transaction: any, accountId: string) => Promise<any>;
+      disconnect?: () => void;
     };
+    hashconnect?: any;
+    hedera?: any;
+    __detectWalletGlobals?: () => any;
   }
+}
+
+const POLL_INTERVAL = 300;
+const POLL_TIMEOUT = 10_000;
+
+async function waitForWalletInjection(timeout = POLL_TIMEOUT) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (typeof window === 'undefined') return false;
+    if (typeof window.hashpack !== 'undefined' || typeof window.hashconnect !== 'undefined' || typeof window.hedera !== 'undefined') {
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+  }
+  return false;
+}
+
+/* Runtime helper (call from browser console) */
+if (typeof window !== 'undefined') {
+  window.__detectWalletGlobals = () => {
+    const keys = Object.keys(window).filter((k) => /hash|hedera|hashconnect/i.test(k));
+    const sample: Record<string, any> = {};
+    ['hashpack', 'hashconnect', 'hedera'].forEach((k) => (sample[k] = (window as any)[k]));
+    console.info('[wallet-detect] matching window keys:', keys);
+    console.info('[wallet-detect] sample values (don\'t paste secrets):', sample);
+    return { keys, sample };
+  };
 }
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
+  const [walletAvailable, setWalletAvailable] = useState<boolean>(typeof window !== 'undefined' && Boolean((window as any).hashpack || (window as any).hashconnect || (window as any).hedera));
+
+  const probeAccountInfo = useCallback(async (): Promise<{ accountId?: string; balance?: string } | null> => {
+    if (typeof window === 'undefined') return null;
+
+    try {
+      if (window.hashpack?.requestAccountInfo) {
+        const info = await window.hashpack.requestAccountInfo();
+        if (info?.success && info?.data?.accountId) {
+          const hb = info.data.balance?.hbars ?? info.data.balance ?? 0;
+          return { accountId: info.data.accountId, balance: String(hb) };
+        }
+      }
+
+      if (window.hashpack?.requestAccounts) {
+        const accounts = await window.hashpack.requestAccounts();
+        const acc = accounts?.accounts?.[0];
+        if (acc) return { accountId: acc, balance: undefined };
+      }
+
+      // fallback checks for other providers
+      const anyWin = window as any;
+      const altAcc = anyWin?.hedera?.accountId || anyWin?.hashconnect?.pairedAccount || anyWin?.hashconnect?.accountId;
+      if (altAcc) return { accountId: String(altAcc), balance: undefined };
+    } catch (e) {
+      // ignore probe errors
+      console.debug('[WalletContext] probeAccountInfo error', e);
+    }
+
+    return null;
+  }, []);
 
   const connectWallet = useCallback(async () => {
     try {
-      // Check if HashPack is installed
-      if (!window.hashpack) {
-        toast({
-          title: "Wallet Not Found",
-          description: "Please install HashPack wallet to continue.",
-          variant: "destructive",
-        });
-        return;
+      if (typeof window === 'undefined') {
+        throw new Error('No window object');
       }
 
-      // Connect to HashPack
-      const connectResult = await window.hashpack.connectToLocalWallet();
-      
-      if (connectResult.success && connectResult.data) {
+      // wait briefly for extension injection if not present
+      if (!window.hashpack && !window.hashconnect && !window.hedera) {
+        const found = await waitForWalletInjection();
+        if (!found) {
+          toast({
+            title: "Wallet Not Found",
+            description: "Please install or open a Hedera wallet (e.g. HashPack) and allow site access.",
+            variant: "destructive",
+          });
+          setWalletAvailable(false);
+          return;
+        }
+        setWalletAvailable(true);
+      } else {
+        setWalletAvailable(true);
+      }
+
+      // Try multiple connect flows for different provider shapes
+      let connectResult: any = null;
+      if (window.hashpack?.connectToLocalWallet) {
+        connectResult = await window.hashpack.connectToLocalWallet();
+      } else if (window.hashpack?.connect) {
+        connectResult = await window.hashpack.connect();
+      } else if (window.hashpack?.requestAccounts) {
+        const accounts = await window.hashpack.requestAccounts();
+        connectResult = { success: true, data: { accountIds: accounts.accounts } };
+      }
+
+      if (connectResult?.success && connectResult.data) {
         const primaryAccountId = connectResult.data.accountIds[0];
         setAccountId(primaryAccountId);
         setIsConnected(true);

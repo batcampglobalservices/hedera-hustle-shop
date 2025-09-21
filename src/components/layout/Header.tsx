@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Search, User, Menu, LogOut } from "lucide-react";
-import { WalletConnectButton } from "@/components/wallet/WalletConnectButton";
+import WalletConnect from "@/components/wallet/WalletConnect";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from '@/contexts/CartContext';
+import { Link } from 'react-router-dom';
 const Header = () => {
   const { user, signOut, loading } = useAuth();
 
@@ -31,12 +33,14 @@ const Header = () => {
             <Search className="w-4 h-4" />
           </Button>
           
-          <Button variant="ghost" size="icon" className="relative">
-            <ShoppingCart className="w-4 h-4" />
-            <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-              3
-            </Badge>
-          </Button>
+          <Link to="/cart">
+            <Button variant="ghost" size="icon" className="relative">
+              <ShoppingCart className="w-4 h-4" />
+              <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                {useCart().items.length}
+              </Badge>
+            </Button>
+          </Link>
 
           {!loading && (
             <>
@@ -45,6 +49,9 @@ const Header = () => {
                   <span className="text-sm text-muted-foreground hidden sm:block">
                     {user.email}
                   </span>
+                  <Link to="/products/new">
+                    <Button variant="ghost" size="icon">Create</Button>
+                  </Link>
                   <Button variant="ghost" size="icon" onClick={signOut}>
                     <LogOut className="w-4 h-4" />
                   </Button>
@@ -58,7 +65,7 @@ const Header = () => {
               )}
               
               <div className="hidden lg:block">
-                <WalletConnectButton />
+                <WalletConnect />
               </div>
             </>
           )}

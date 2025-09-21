@@ -3,12 +3,15 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Star, ShoppingCart, Heart, Zap, Loader2 } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
+import { Link } from "react-router-dom";
+import { useCart } from "@/contexts/CartContext";
 import { useWallet } from "@/contexts/WalletContext";
 import { toast } from "@/hooks/use-toast";
 
 const ProductGrid = () => {
   const { data: products, isLoading, error } = useProducts();
   const { isConnected, sendTransaction } = useWallet();
+  const { addToCart } = useCart();
 
   const handleBuyWithHBAR = async (product: any) => {
     if (!isConnected) {
@@ -113,7 +116,7 @@ const ProductGrid = () => {
                 </div>
                 
                 <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors">
-                  {product.name}
+                  <Link to={`/product/${product.id}`} className="block">{product.name}</Link>
                 </h3>
                 
                 <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
@@ -136,8 +139,11 @@ const ProductGrid = () => {
                 )}
               </CardContent>
 
-              <CardFooter className="p-6 pt-0 space-y-2">
-                <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                <CardFooter className="p-6 pt-0 space-y-2">
+                <Button
+                  className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                  onClick={() => addToCart(product)}
+                >
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Add to Cart
                 </Button>

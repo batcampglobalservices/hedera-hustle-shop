@@ -42,6 +42,24 @@ export const useProducts = () => {
   });
 };
 
+export const useProduct = (id: string) => {
+  return useQuery({
+    queryKey: ['product', id],
+    queryFn: async (): Promise<Product | null> => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from('products')
+        .select(`*, categories ( name )`)
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data || null;
+    },
+    enabled: Boolean(id),
+  });
+};
+
 export const useCategories = () => {
   return useQuery({
     queryKey: ['categories'],
